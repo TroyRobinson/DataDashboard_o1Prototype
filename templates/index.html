@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Editable Data Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            width: 90%;
+            margin: auto;
+            padding-top: 50px;
+        }
+        /* Login/Register Form */
+        .form-container {
+            max-width: 400px;
+            margin: auto;
+        }
+        .form-container h2 {
+            text-align: center;
+        }
+        .form-container form {
+            display: flex;
+            flex-direction: column;
+        }
+        .form-container input[type="text"],
+        .form-container input[type="password"],
+        .form-container input[type="file"],
+        .form-container input[type="url"] {
+            padding: 10px;
+            margin: 5px 0;
+        }
+        .form-container button {
+            padding: 10px;
+            margin-top: 10px;
+            cursor: pointer;
+        }
+        /* Dashboard */
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .metric-card {
+            border: 1px solid #ccc;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 2px 2px 12px #eee;
+            position: relative;
+            background-color: #fff;
+        }
+        .metric-card h3 {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        /* Upload Form */
+        .upload-form {
+            margin-top: 20px;
+            border: 1px solid #ccc;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 2px 2px 12px #eee;
+        }
+        /* Flash Messages */
+        .flash {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+        /* Logout Button */
+        .logout-button {
+            padding: 10px 20px;
+            cursor: pointer;
+            background-color: #f44336;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        /* Register Link */
+        .register-link {
+            text-align: center;
+            margin-top: 10px;
+        }
+        .register-link a {
+            color: #007BFF;
+            text-decoration: none;
+        }
+        /* Settings Icon */
+        .settings-icon {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            cursor: pointer;
+            font-size: 18px;
+            color: #555;
+        }
+        /* Popup Modal */
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed; /* Stay in place */
+            z-index: 1000; /* Sit on top */
+            left: 0;
+            top: 0;
+            width: 100%; /* Full width */
+            height: 100%; /* Full height */
+            overflow: auto; /* Enable scroll if needed */
+            background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+        }
+        /* Modal Content */
+        .modal-content {
+            background-color: #fefefe;
+            margin: 10% auto; /* 10% from the top and centered */
+            padding: 20px;
+            border: 1px solid #888;
+            width: 350px; /* Could be more or less, depending on screen size */
+            border-radius: 5px;
+        }
+        /* Close Button */
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+        }
+        /* Toggle Button */
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+        .toggle-container label {
+            font-size: 16px;
+        }
+        .share-button {
+            padding: 10px 20px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        .share-link-container {
+            margin-top: 10px;
+            word-break: break-all;
+        }
+        .share-link {
+            background-color: #f1f1f1;
+            padding: 5px;
+            border-radius: 3px;
+            display: inline-block;
+            width: 100%;
+            text-align: center;
+        }
+        /* Disable dragging cursor */
+        .metric-card.draggable {
+            cursor: move;
+        }
+        /* Chart Type Selection */
+        .chart-type-container {
+            margin-top: 20px;
+        }
+        .chart-type-container label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 16px;
+        }
+        .chart-type-container select {
+            width: 100%;
+            padding: 8px;
+            font-size: 16px;
+        }
+        /* Data Source Selection */
+        .data-source-selector {
+            margin-bottom: 15px;
+        }
+        .data-source-selector input {
+            margin-right: 5px;
+        }
+        /* Hide elements */
+        .hidden {
+            display: none;
+        }
+    </style>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- SortableJS CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+            {% for message in messages %}
+              <div class="flash">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+        
+        {% if login %}
+            <!-- Login/Register Forms -->
+            <div class="form-container">
+                <h2>Login</h2>
+                <form method="POST" action="{{ url_for('index') }}">
+                    <input type="text" name="username" placeholder="Username" required>
+                    <input type="password" name="password" placeholder="Password" required>
+                    <button type="submit">Login</button>
+                </form>
+                <div class="register-link">
+                    <p>Don't have an account? <a href="#" onclick="toggleRegister()">Register here</a></p>
+                </div>
+            </div>
+            <!-- Hidden Register Form -->
+            <div class="form-container" id="register-form" style="display:none;">
+                <h2>Register</h2>
+                <form method="POST" action="{{ url_for('register') }}">
+                    <input type="text" name="username" placeholder="Username" required>
+                    <input type="password" name="password" placeholder="Password" required>
+                    <button type="submit">Register</button>
+                </form>
+                <div class="register-link">
+                    <p>Already have an account? <a href="#" onclick="toggleRegister()">Login here</a></p>
+                </div>
+            </div>
+        {% else %}
+            <!-- Dashboard -->
+            <div class="dashboard-header">
+                <h2>Welcome{% if username %}, {{ username }}{% endif %}</h2>
+                {% if not shared %}
+                <div>
+                    <button class="share-button" onclick="shareDashboard()">Share Dashboard</button>
+                    <form action="{{ url_for('logout') }}" method="GET" style="display:inline;">
+                        <button type="submit" class="logout-button">Logout</button>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+            
+            {% if not shared %}
+            <!-- Upload Form -->
+            <div class="upload-form">
+                <h3>Add New Metric</h3>
+                <form method="POST" action="{{ url_for('upload') }}" enctype="multipart/form-data">
+                    <input type="text" name="metric_name" placeholder="Metric Name" required>
+                    
+                    <div class="data-source-selector">
+                        <label>
+                            <input type="radio" name="data_source" value="csv" checked onclick="toggleDataSource()"> Upload CSV
+                        </label>
+                        <label>
+                            <input type="radio" name="data_source" value="google_sheet" onclick="toggleDataSource()"> Google Sheets URL
+                        </label>
+                    </div>
+                    
+                    <div id="csv-input">
+                        <input type="file" name="csv_file" accept=".csv">
+                    </div>
+                    
+                    <div id="google-sheet-input" class="hidden">
+                        <input type="url" name="google_sheet_url" placeholder="Enter Google Sheets URL">
+                    </div>
+                    
+                    <button type="submit">Add Metric</button>
+                </form>
+            </div>
+            {% endif %}
+            
+            <!-- Metrics Grid -->
+            <div class="metrics-grid" id="metrics-grid">
+                {% for metric in metrics %}
+                    <div class="metric-card" data-metric-id="{{ metric.id }}">
+                        {% if not shared %}
+                        <span class="settings-icon" onclick="openSettingsModal({{ metric.id }})">&#9881;</span>
+                        {% endif %}
+                        <h3>{{ metric.metric_name }}</h3>
+                        <canvas id="chart-{{ metric.id }}"></canvas>
+                    </div>
+                {% endfor %}
+            </div>
+            
+            {% if not shared %}
+            <!-- Share Modal -->
+            <div id="share-modal" class="modal">
+                <div class="modal-content">
+                    <span class="close" onclick="closeShareModal()">&times;</span>
+                    <h3>Share Your Dashboard</h3>
+                    <button class="share-button" onclick="generateShareLink()">Generate Share Link</button>
+                    <div class="share-link-container" id="share-link-container" style="display:none;">
+                        <p>Share this link with others (view-only):</p>
+                        <div class="share-link" id="share-link"></div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Settings Modal Template -->
+            <div id="settings-modal" class="modal">
+                <div class="modal-content">
+                    <span class="close" onclick="closeSettingsModal()">&times;</span>
+                    <h3>Settings</h3>
+                    <div class="toggle-container">
+                        <label for="toggle-axes">Switch X and Y Axes:</label>
+                        <input type="checkbox" id="toggle-axes" onchange="toggleAxes()">
+                    </div>
+                    <div class="chart-type-container">
+                        <label for="chart-type-select">Select Chart Type:</label>
+                        <select id="chart-type-select" onchange="updateChartType()">
+                            <option value="bar">Bar</option>
+                            <option value="line">Line</option>
+                            <option value="pie">Pie</option>
+                            <option value="doughnut">Doughnut</option>
+                            <option value="radar">Radar</option>
+                            <option value="polarArea">Polar Area</option>
+                        </select>
+                    </div>
+                    <button style="margin-top:20px; padding:10px 20px;" onclick="saveSettings()">Save</button>
+                </div>
+            </div>
+            
+        {% endif %}
+    </div>
+    
+    {% if not login %}
+    <script>
+        let currentMetricId = null;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            {% for metric in metrics %}
+                fetchMetricData({{ metric.id }});
+            {% endfor %}
+            
+            {% if not shared %}
+            // Initialize SortableJS for drag-and-drop
+            var sortable = Sortable.create(document.getElementById('metrics-grid'), {
+                animation: 150,
+                onEnd: function (evt) {
+                    var metricOrder = [];
+                    document.querySelectorAll('.metric-card').forEach(function(card) {
+                        metricOrder.push(parseInt(card.getAttribute('data-metric-id')));
+                    });
+                    // Send the new order to the server
+                    fetch('{{ url_for("update_order") }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({metric_order: metricOrder})
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if(data.success){
+                            console.log('Order updated successfully');
+                        } else {
+                            console.error('Error updating order:', data.error);
+                        }
+                    });
+                }
+            });
+            {% endif %}
+        });
+        
+        function fetchMetricData(metricId) {
+            {% if shared %}
+                var url = '/data/' + metricId + '?share_id={{ share_id if share_id else "" }}';
+            {% else %}
+                var url = '/data/' + metricId;
+            {% endif %}
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if(data.error){
+                        console.error(data.error);
+                        return;
+                    }
+                    const ctx = document.getElementById('chart-' + metricId).getContext('2d');
+                    const chartType = data.chart_type || 'bar';
+                    const indexAxis = data.switch_axes ? 'y' : 'x';
+                    const chartData = {
+                        labels: data.labels,
+                        datasets: [{
+                            label: data.metric_name,
+                            data: data.values,
+                            backgroundColor: generateColors(data.labels.length),
+                            borderColor: generateBorderColors(data.labels.length),
+                            borderWidth: 1
+                        }]
+                    };
+                    const chartOptions = {
+                        responsive: true,
+                        indexAxis: indexAxis,
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    };
+                    // Adjust options for specific chart types
+                    if(chartType === 'pie' || chartType === 'doughnut' || chartType === 'polarArea' || chartType === 'radar'){
+                        delete chartOptions.scales;
+                    }
+                    const chart = new Chart(ctx, {
+                        type: chartType,
+                        data: chartData,
+                        options: chartOptions
+                    });
+                    // Store chart instance for later updates
+                    document.getElementById('chart-' + metricId).chartInstance = chart;
+                });
+        }
+
+        // Function to generate random colors for charts
+        function generateColors(count) {
+            const colors = [];
+            for(let i=0; i<count; i++) {
+                const r = Math.floor(Math.random() * 255);
+                const g = Math.floor(Math.random() * 255);
+                const b = Math.floor(Math.random() * 255);
+                colors.push(`rgba(${r}, ${g}, ${b}, 0.6)`);
+            }
+            return colors;
+        }
+
+        function generateBorderColors(count) {
+            const colors = [];
+            for(let i=0; i<count; i++) {
+                const r = Math.floor(Math.random() * 255);
+                const g = Math.floor(Math.random() * 255);
+                const b = Math.floor(Math.random() * 255);
+                colors.push(`rgba(${r}, ${g}, ${b}, 1)`);
+            }
+            return colors;
+        }
+        
+        function toggleRegister() {
+            var loginForm = document.querySelector('.form-container');
+            var registerForm = document.getElementById('register-form');
+            if (registerForm.style.display === 'none') {
+                registerForm.style.display = 'block';
+                loginForm.style.display = 'none';
+            } else {
+                registerForm.style.display = 'none';
+                loginForm.style.display = 'block';
+            }
+        }
+
+        // Settings Modal Functionality
+        function openSettingsModal(metricId) {
+            currentMetricId = metricId;
+            var modal = document.getElementById('settings-modal');
+            document.getElementById('toggle-axes').checked = false;
+            document.getElementById('chart-type-select').value = 'bar';
+            // Fetch current settings
+            fetch('/data/' + metricId)
+                .then(response => response.json())
+                .then(data => {
+                    if(data.error){
+                        console.error(data.error);
+                        return;
+                    }
+                    document.getElementById('toggle-axes').checked = data.switch_axes ? true : false;
+                    document.getElementById('chart-type-select').value = data.chart_type || 'bar';
+                });
+            modal.style.display = 'block';
+        }
+
+        function closeSettingsModal() {
+            var modal = document.getElementById('settings-modal');
+            modal.style.display = 'none';
+            currentMetricId = null;
+        }
+
+        function toggleAxes() {
+            if (currentMetricId === null) return;
+            const switchAxes = document.getElementById('toggle-axes').checked ? 1 : 0;
+            fetch('{{ url_for("update_axes") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    metric_id: currentMetricId,
+                    switch_axes: switchAxes
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if(data.success){
+                    // Reload the chart with new axes
+                    const canvas = document.getElementById('chart-' + currentMetricId);
+                    if(canvas.chartInstance){
+                        canvas.chartInstance.destroy();
+                    }
+                    fetchMetricData(currentMetricId);
+                } else {
+                    console.error('Error updating axes:', data.error);
+                }
+            });
+        }
+
+        function updateChartType() {
+            if (currentMetricId === null) return;
+            const chartType = document.getElementById('chart-type-select').value;
+            fetch('{{ url_for("update_chart_type") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    metric_id: currentMetricId,
+                    chart_type: chartType
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if(data.success){
+                    // Reload the chart with new chart type
+                    const canvas = document.getElementById('chart-' + currentMetricId);
+                    if(canvas.chartInstance){
+                        canvas.chartInstance.destroy();
+                    }
+                    fetchMetricData(currentMetricId);
+                } else {
+                    console.error('Error updating chart type:', data.error);
+                }
+            });
+        }
+
+        function saveSettings() {
+            closeSettingsModal();
+        }
+
+        // Share Dashboard Functionality
+        function shareDashboard() {
+            var modal = document.getElementById('share-modal');
+            modal.style.display = 'block';
+        }
+
+        function closeShareModal() {
+            var modal = document.getElementById('share-modal');
+            modal.style.display = 'none';
+        }
+
+        function generateShareLink() {
+            fetch('{{ url_for("share_dashboard") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if(data.share_url){
+                    var container = document.getElementById('share-link-container');
+                    var linkDiv = document.getElementById('share-link');
+                    linkDiv.textContent = data.share_url;
+                    container.style.display = 'block';
+                } else {
+                    alert('Error generating share link');
+                }
+            });
+        }
+
+        // Toggle Data Source Inputs
+        function toggleDataSource() {
+            var dataSource = document.querySelector('input[name="data_source"]:checked').value;
+            if(dataSource === 'csv') {
+                document.getElementById('csv-input').classList.remove('hidden');
+                document.getElementById('google-sheet-input').classList.add('hidden');
+            } else {
+                document.getElementById('csv-input').classList.add('hidden');
+                document.getElementById('google-sheet-input').classList.remove('hidden');
+            }
+        }
+
+        // Close modals when clicking outside
+        window.onclick = function(event) {
+            {% if not shared %}
+            var shareModal = document.getElementById('share-modal');
+            if (event.target == shareModal) {
+                shareModal.style.display = "none";
+            }
+            {% endif %}
+            var settingsModal = document.getElementById('settings-modal');
+            if (settingsModal && event.target == settingsModal) {
+                settingsModal.style.display = "none";
+                currentMetricId = null;
+            }
+        }
+    </script>
+    {% endif %}
+    
+    {% if login %}
+    <script>
+        function toggleRegister() {
+            var loginForm = document.querySelector('.form-container');
+            var registerForm = document.getElementById('register-form');
+            if (registerForm.style.display === 'none') {
+                registerForm.style.display = 'block';
+                loginForm.style.display = 'none';
+            } else {
+                registerForm.style.display = 'none';
+                loginForm.style.display = 'block';
+            }
+        }
+    </script>
+    {% endif %}
+</body>
+</html>
