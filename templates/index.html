@@ -72,11 +72,17 @@
         }
         /* Flash Messages */
         .flash {
-            background-color: #f8d7da;
-            color: #721c24;
             padding: 10px;
             margin-bottom: 20px;
             border-radius: 5px;
+        }
+        .flash.error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .flash.success {
+            background-color: #d4edda;
+            color: #155724;
         }
         /* Logout Button */
         .logout-button {
@@ -199,6 +205,18 @@
         .hidden {
             display: none;
         }
+        /* Add styles for the delete icon */
+        .delete-icon {
+            position: absolute;
+            top: 10px;
+            right: 40px; /* Positioned to the left of the settings icon */
+            cursor: pointer;
+            font-size: 18px;
+            color: #f44336;
+        }
+        .delete-icon:hover {
+            color: #d32f2f;
+        }
     </style>
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -207,10 +225,10 @@
 </head>
 <body>
     <div class="container">
-        {% with messages = get_flashed_messages() %}
+        {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
-            {% for message in messages %}
-              <div class="flash">{{ message }}</div>
+            {% for category, message in messages %}
+              <div class="flash {{ category }}">{{ message }}</div>
             {% endfor %}
           {% endif %}
         {% endwith %}
@@ -288,7 +306,10 @@
                 {% for metric in metrics %}
                     <div class="metric-card" data-metric-id="{{ metric.id }}">
                         {% if not shared %}
-                        <span class="settings-icon" onclick="openSettingsModal({{ metric.id }})">&#9881;</span>
+                        <div class="card-controls">
+                            <span class="settings-icon" onclick="openSettingsModal({{ metric.id }})">⚙️</span>
+                            <span class="delete-icon" onclick="deleteMetric({{ metric.id }})">&#10060;</span>
+                        </div>
                         {% endif %}
                         <h3>{{ metric.metric_name }}</h3>
                         <canvas id="chart-{{ metric.id }}"></canvas>
@@ -604,6 +625,35 @@
                 currentMetricId = null;
             }
         }
+
+        // Add the deleteMetric function to handle metric deletion
+        function deleteMetric(metricId) {
+            if (confirm('Are you sure you want to delete this metric?')) {
+                fetch('/delete_metric', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ metric_id: metricId })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if(data.success){
+                        // Remove the metric card from the DOM
+                        var card = document.querySelector(`.metric-card[data-metric-id="${metricId}"]`);
+                        if(card){
+                            card.remove();
+                        }
+                    } else {
+                        alert('Error deleting metric: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while deleting the metric.');
+                });
+            }
+        }
     </script>
     {% endif %}
     
@@ -622,5 +672,25 @@
         }
     </script>
     {% endif %}
+    
+    <!-- Add this script block just before the closing </body> tag -->
+    <script>
+        // Function to hide flash messages after a delay
+        function hideFlashMessages() {
+            var flashMessages = document.querySelectorAll('.flash');
+            flashMessages.forEach(function(message) {
+                setTimeout(function() {
+                    message.style.transition = 'opacity 0.5s ease-in-out';
+                    message.style.opacity = '0';
+                    setTimeout(function() {
+                        message.style.display = 'none';
+                    }, 500);
+                }, 5000); // 5000 milliseconds = 5 seconds
+            });
+        }
+
+        // Call the function when the DOM is fully loaded
+        document.addEventListener('DOMContentLoaded', hideFlashMessages);
+    </script>
 </body>
 </html>

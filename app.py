@@ -95,9 +95,10 @@ def index():
         if user and check_password_hash(user['password_hash'], password):
             session['user_id'] = user['id']
             session['username'] = user['username']
+            flash('Login successful!', 'success')
             return redirect(url_for('dashboard'))
         else:
-            flash('Invalid username or password')
+            flash('Invalid username or password', 'error')
             return redirect(url_for('index'))
     
     return render_template('index.html', login=True)
@@ -120,9 +121,9 @@ def register():
                      (username, password_hash))
         conn.commit()
         conn.close()
-        flash('Registration successful. Please log in.')
+        flash('Registration successful. Please log in.', 'success')
     except sqlite3.IntegrityError:
-        flash('Username already exists')
+        flash('Username already exists', 'error')
     
     return redirect(url_for('index'))
 
@@ -210,7 +211,7 @@ def upload():
                      (user_id, metric_name, google_sheet_url, next_position))
         conn.commit()
         conn.close()
-        flash('Metric added successfully from Google Sheets')
+        flash('Metric added successfully from Google Sheets', 'success')
         return redirect(url_for('dashboard'))
     elif csv_file:
         if csv_file.filename == '':
@@ -224,10 +225,10 @@ def upload():
                          (user_id, metric_name, csv_data, next_position))
             conn.commit()
             conn.close()
-            flash('Metric uploaded successfully')
+            flash('Metric uploaded successfully', 'success')
             return redirect(url_for('dashboard'))
         else:
-            flash('Invalid file type. Only CSV files are allowed.')
+            flash('Invalid file type. Only CSV files are allowed.', 'error')
             conn.close()
             return redirect(url_for('dashboard'))
 
@@ -362,6 +363,30 @@ def update_order():
     conn = get_db_connection()
     for position, metric_id in enumerate(metric_order, start=1):
         conn.execute('UPDATE metrics SET position = ? WHERE id = ? AND user_id = ?', (position, metric_id, session['user_id']))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True})
+
+# Add a new route to handle metric deletion
+@app.route('/delete_metric', methods=['POST'])
+def delete_metric():
+    if 'user_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    data = request.get_json()
+    metric_id = data.get('metric_id')
+    
+    if metric_id is None:
+        return jsonify({'error': 'Invalid data'}), 400
+    
+    conn = get_db_connection()
+    metric = conn.execute('SELECT * FROM metrics WHERE id = ? AND user_id = ?', (metric_id, session['user_id'])).fetchone()
+    if not metric:
+        conn.close()
+        return jsonify({'error': 'Metric not found'}), 404
+    
+    conn.execute('DELETE FROM metrics WHERE id = ?', (metric_id,))
     conn.commit()
     conn.close()
     
