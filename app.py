@@ -371,4 +371,6 @@ if __name__ == '__main__':
     # Ensure the database file exists
     if not os.path.exists(DATABASE):
         init_db()
-    app.run(debug=True)
+    
+    port = int(os.environ.get('PORT', 5000))  # Use PORT provided by Render or default to 5000
+    app.run(host='0.0.0.0', port=port, debug=True)
